@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>WebXR Inline Session – VR und AR</title>
+  <link rel="stylesheet" href="https://immersive-web.github.io/webxr-samples/css/common.css">
+  <style>
+    html, body {margin:0; width:100%; height:100%; overflow:hidden; font-family:Arial,sans-serif; background:#171d2a;}
+    header {position:absolute; z-index:5; left:15px; top:15px; padding:14px; border-radius:9px;
+       background:rgba(18,22,37,.85); color:white; max-width:400px;}
+    header h2 {margin:0 0 7px; font-size:19px;}
+    header p {margin:3px 0 8px; font-size:13px; line-height:1.4;}
+    #buttons {display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
+    #buttons > * {margin:0!important;}
+    #status {margin-top:8px; font-size:12px; opacity:.95;}
+    canvas {position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none;}
+  </style>
+</head>
+<body>
+  <header>
+    <h2>Inline Session – VR und AR</h2>
+    <p>Gleiche 3D-Szene in Inline, VR und AR. Blick im Browser: rechte Maustaste ziehen oder Touch.</p>
+    <div id="buttons"></div>
+    <p><label for="vertFOV">Vertical FOV:</label>
+    <input id="vertFOV" type="range" value="90" min="30" max="150" step="10">
+    <span id="fovValue">90°</span></p>
+    <div id="status">WebXR wird überprüft …</div>
+  </header>
+  <script type="module">
+    // Basierend auf dem offiziellen Beispiel „Inline Session“ (Immersive Web WG, MIT).
+    // Das Beispiel wurde um eine eigenständige AR-Taste und AR-Session ergänzt.
+    const BASE = 'https://immersive-web.github.io/webxr-samples/';
+    import {WebXRButton} from 'https://immersive-web.github.io/webxr-samples/js/util/webxr-button.js';
+    import {Scene} from 'https://immersive-web.github.io/webxr-samples/js/render/scenes/scene.js';
+    import {Renderer, createWebGLContext} from 'https://immersive-web.github.io/webxr-samples/js/render/core/renderer.js';
+    import {Gltf2Node} from 'https://immersive-web.github.io/webxr-samples/js/render/nodes/gltf2.js';
+    import {SkyboxNode} from 'https://immersive-web.github.io/webxr-samples/js/render/nodes/skybox.js';
+    import {quat} from 'https://immersive-web.github.io/webxr-samples/js/render/math/gl-matrix.js';
+
+    const statusEl = document.getElementById('status');
+    const fovInput = document.getElementById('vertFOV');
+    const fovValue = document.getElementById('fovValue');
+    let vrButton, arButton;
+    let inlineSession = null;
+    let xrInlineRefSpace = null;
+    let xrImmersiveRefSpace = null;
+    let gl = null, renderer = null;
+    let activeImmersiveSession = null;
+
+    const scene = new Scene();
+    const solarSystem = new Gltf2Node({url: BASE + 'media/gltf/space/space.gltf'});
+    scene.addNode(solarSystem);
+    const skybox = new SkyboxNode({url: BASE + 'media/textures/milky-way-4k.png'});
+    scene.addNode(skybox);
+
+    function updateFov() {
+      const deg = Number(fovInput.value);
+      fovValue.textContent = deg + '°';
+      if (inlineSession) {
+        inlineSession.updateRenderState({inlineVerticalFieldOfView: deg * Math.PI / 180});
+      }
+    }
+    fovInput.addEventListener('input', updateFov);
+
+    function makeButton(kind, labels) {
+      const btn = new WebXRButton({
+        onRequestSession: () => onRequestSession(kind),
+        onEndSession: (session) => session.end(),
+        textEnterXRTitle: labels.enter,
+        textXRNotFoundTitle: labels.notFound,
+        textExitXRTitle: labels.exit
+      });
+      document.querySelector('#buttons').appendChild(btn.domElement);
+      btn.enabled = false;
+      return btn;
+    }
+
+    async function initXR() {
+      vrButton = makeButton('immersive-vr', {
+        enter:'ENTER VR', notFound:'VR NICHT VERFÜGBAR', exit:'EXIT VR'
+      });
+      arButton = makeButton('immersive-ar', {
+        enter:'ENTER AR', notFound:'AR NICHT VERFÜGBAR', exit:'EXIT AR'
+      });
+      if (!navigator.xr) {
+        statusEl.textContent = 'Keine WebXR-API: Browser / HTTPS / Emulator prüfen.';
+        return;
+      }
+      const [supportsVR, supportsAR] = await Promise.all([
+        navigator.xr.isSessionSupported('immersive-vr').catch(() => false),
+        navigator.xr.isSessionSupported('immersive-ar').catch(() => false)
+      ]);
+      vrButton.enabled = supportsVR;
+      arButton.enabled = supportsAR;
+      statusEl.textContent = 'VR: ' + (supportsVR ? 'bereit' : 'nicht verfügbar') +
+                             ' | AR: ' + (supportsAR ? 'bereit' : 'nicht verfügbar');
+      // Original: Inline-Session erlaubt 3D-Darstellung im normalen Browser.
+      try {
+        inlineSession = await navigator.xr.requestSession('inline');
+        await onSessionStarted(inlineSession, false);
+        updateFov();
+      } catch(e) {
+        statusEl.textContent = 'Inline-Session fehlgeschlagen: ' + e.message;
+        console.error(e);
+      }
+    }
+
+    async function onRequestSession(kind) {
+      if (activeImmersiveSession) return;
+      try {
+        const session = await navigator.xr.requestSession(kind);
+        session.isImmersive = true;
+        session.isAR = (kind === 'immersive-ar');
+        activeImmersiveSession = session;
+        if (session.isAR) {
+          skybox.visible = false;             // AR: reale Umgebung sichtbar lassen
+          solarSystem.scale = [0.1, 0.1, 0.1]; // Wie beim offiziellen AR-Beispiel
+          arButton.setSession(session);
+          vrButton.enabled = false;
+        } else {
+          skybox.visible = true;
+          solarSystem.scale = [1, 1, 1];
+          vrButton.setSession(session);
+          arButton.enabled = false;
+        }
+        await onSessionStarted(session, true);
+      } catch(e) {
+        console.error(e);
+        statusEl.textContent = kind + ': ' + e.message;
+        activeImmersiveSession = null;
+        skybox.visible = true;
+        solarSystem.scale = [1,1,1];
+        vrButton.setSession(null);
+        arButton.setSession(null);
+        checkButtons();
+      }
+    }
+
+    async function checkButtons() {
+      if (!navigator.xr) return;
+      vrButton.enabled = await navigator.xr.isSessionSupported('immersive-vr').catch(() => false);
+      arButton.enabled = await navigator.xr.isSessionSupported('immersive-ar').catch(() => false);
+    }
+
+    function initGL() {
+      if (gl) return;
+      gl = createWebGLContext({xrCompatible:true});
+      document.body.appendChild(gl.canvas);
+      function resize() {
+        gl.canvas.width = gl.canvas.clientWidth * devicePixelRatio;
+        gl.canvas.height = gl.canvas.clientHeight * devicePixelRatio;
+      }
+      window.addEventListener('resize', resize);
+      resize();
+      addInlineViewListeners(gl.canvas);
+      renderer = new Renderer(gl);
+      scene.setRenderer(renderer);
+    }
+
+    async function onSessionStarted(session, immersive) {
+      session.addEventListener('end', onSessionEnded);
+      initGL();
+      session.updateRenderState({baseLayer: new XRWebGLLayer(session, gl)});
+      // AR und VR verwenden local, Inline verwendet viewer.
+      const refSpace = await session.requestReferenceSpace(immersive ? 'local' : 'viewer');
+      if (immersive) xrImmersiveRefSpace = refSpace;
+      else xrInlineRefSpace = refSpace;
+      session.requestAnimationFrame(onXRFrame);
+    }
+
+    function onSessionEnded(event) {
+      const ended = event.target;
+      if (ended === inlineSession) {
+        inlineSession = null;
+      }
+      if (ended === activeImmersiveSession) {
+        if (ended.isAR) arButton.setSession(null);
+        else vrButton.setSession(null);
+        activeImmersiveSession = null;
+        skybox.visible = true;
+        solarSystem.scale = [1,1,1];
+        checkButtons();
+      }
+    }
+
+    function onXRFrame(t, frame) {
+      const session = frame.session;
+      const isImmersive = !!session.isImmersive;
+      session.requestAnimationFrame(onXRFrame);
+      let refSpace = isImmersive ? xrImmersiveRefSpace : xrInlineRefSpace;
+      if (!refSpace) return;
+      if (!isImmersive) refSpace = getAdjustedRefSpace(refSpace);
+      const pose = frame.getViewerPose(refSpace);
+      scene.startFrame();
+      if (pose) {
+        const layer = session.renderState.baseLayer;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
+        // Nur AR ohne undurchsichtigen Hintergrund (Skybox ist unsichtbar).
+        gl.clearColor(0, 0, 0, isImmersive && session.isAR ? 0 : 1);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        for (const view of pose.views) {
+          const v = layer.getViewport(view);
+          gl.viewport(v.x, v.y, v.width, v.height);
+          scene.draw(view.projectionMatrix, view.transform);
+        }
+      }
+      scene.endFrame();
+    }
+
+    // Maus/Touch-Navigation nur für die Inline-Ansicht.
+    let yaw = 0, pitch = 0;
+    function rotateView(dx, dy) {
+      yaw += dx * .0025;
+      pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch + dy * .0025));
+    }
+    function getAdjustedRefSpace(refSpace) {
+      const q = quat.create();
+      quat.rotateX(q, q, -pitch);
+      quat.rotateY(q, q, -yaw);
+      return refSpace.getOffsetReferenceSpace(new XRRigidTransform(
+        {x:0, y:0, z:0}, {x:q[0], y:q[1], z:q[2], w:q[3]}));
+    }
+    function addInlineViewListeners(canvas) {
+      canvas.addEventListener('contextmenu', e => e.preventDefault());
+      canvas.addEventListener('mousemove', e => {
+        if ((e.buttons & 2) !== 0) rotateView(e.movementX, e.movementY);
+      });
+      let prev = null;
+      canvas.addEventListener('touchstart', e => {
+        const t = e.touches[0];
+        if (t) prev = {x:t.clientX, y:t.clientY};
+      }, {passive:true});
+      canvas.addEventListener('touchmove', e => {
+        const t = e.touches[0];
+        if (t && prev) {rotateView(t.clientX-prev.x, t.clientY-prev.y); prev={x:t.clientX,y:t.clientY};}
+      }, {passive:true});
+      canvas.addEventListener('touchend', () => {prev=null;});
+    }
+
+    initXR();
+  </script>
+</body>
+</html>

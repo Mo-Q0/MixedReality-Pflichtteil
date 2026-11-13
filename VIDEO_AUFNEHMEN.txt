@@ -1,0 +1,10 @@
+VIDEO – SELBST AUFNEHMEN
+
+Vorgeschlagener Ablauf (ca. 40 bis 70 Sekunden):
+1. index.html starten.
+2. WebXR Inline Session öffnen und Szene per Maus drehen.
+3. Auf der Quest den VR-Modus zeigen.
+4. Auf einem AR-fähigen Gerät den AR-Modus zeigen (Umgebung + 3D-Objekte).
+5. A-Frame-Szene öffnen; 5+ Objekte, GLB-Kiste, Textur und Schatten demonstrieren.
+
+Die Geräteaufnahme muss noch erstellt werden. Bitte KEIN simuliertes Video als echten Gerätetest ausgeben.
