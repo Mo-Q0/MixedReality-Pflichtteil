@@ -1,63 +1,138 @@
 <!doctype html>
 <html lang="de">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mixed Reality – A-Frame-Pflichtteil</title>
-  <!-- A-Frame ist ein Framework auf Basis von Three.js. -->
+
+  <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.8.0/aframe.min.js"></script>
 </head>
+
 <body>
-  <a-scene shadow="type: pcf" xr-mode-ui="XRMode: xr" background="color: #dcecf4">
+
+  <a-scene
+    shadow="type: pcf"
+    xr-mode-ui="XRMode: xr"
+    background="color: #dcecf4">
+
+    <!-- 3D-Modell und Textur -->
     <a-assets timeout="15000">
-      <!-- Lokales, eingelesenes 3D-Modell (GLB). -->
-      <a-asset-item id="crateModel" src="assets/cargo_crate.glb"></a-asset-item>
-      <!-- Lokale Bildtextur für den Boden. -->
-      <img id="bodenTextur" src="assets/boden.png" alt="Bodentextur">
+
+      <a-asset-item
+        id="crateModel"
+        src="cargo_crate.glb">
+      </a-asset-item>
+
+      <img
+        id="bodenTextur"
+        src="boden.png"
+        alt="Bodentextur">
+
     </a-assets>
 
-    <!-- Lichtquellen: DirectionalLight wirft Schatten. -->
-    <a-entity light="type: ambient; color: #ffffff; intensity: 0.45"></a-entity>
-    <a-entity light="type: directional; color: #ffffff; intensity: 1.0;
-                     castShadow: true; shadowMapWidth: 2048; shadowMapHeight: 2048;
-                     shadowCameraLeft: -8; shadowCameraRight: 8;
-                     shadowCameraTop: 8; shadowCameraBottom: -8;
-                     shadowCameraNear: 0.5; shadowCameraFar: 25"
-              position="-3 7 1"></a-entity>
-
-    <!-- Objekt 1: Texturierter Boden (empfängt Schatten). -->
-    <a-plane id="boden" position="0 -0.01 -3" rotation="-90 0 0" width="12" height="12"
-             material="src: #bodenTextur; repeat: 5 5; roughness: 1"
-             shadow="receive: true; cast: false"></a-plane>
-
-    <!-- Objekt 2: Kiste als importiertes 3D-Modell. -->
-    <a-entity id="frachtkiste" gltf-model="#crateModel" position="-1.6 0 -2.8"
-              rotation="0 28 0" shadow="cast: true; receive: true"></a-entity>
-
-    <!-- Weitere geometrische Objekte. -->
-    <!-- Objekt 3: Box (Plattform). -->
-    <a-box position="0.6 0.2 -3" width="1.9" height="0.4" depth="1.35"
-           color="#d5a053" shadow="cast: true; receive: true"></a-box>
-
-    <!-- Objekt 4: Kugel. -->
-    <a-sphere position="0.4 0.92 -3" radius="0.43" color="#428fc2"
-              shadow="cast: true; receive: true"></a-sphere>
-
-    <!-- Objekt 5: Zylinder. -->
-    <a-cylinder position="2.1 0.65 -3.1" radius="0.28" height="1.3"
-                color="#c76d69" shadow="cast: true; receive: true"></a-cylinder>
-
-    <!-- Objekt 6: Kegel. -->
-    <a-cone position="-0.8 0.55 -4.1" radius-bottom="0.4" radius-top="0"
-            height="1.1" color="#e6be57" shadow="cast: true; receive: true"></a-cone>
-
-    <!-- Objekt 7: Torus als Dekoration. -->
-    <a-torus position="1.65 1.0 -4.15" radius="0.45" radius-tubular="0.065"
-             color="#517c62" shadow="cast: true; receive: false"></a-torus>
-
-    <a-entity position="0 1.6 1.2">
-      <a-camera look-controls wasd-controls="acceleration: 20"></a-camera>
+    <!-- Umgebungslicht -->
+    <a-entity
+      light="type: ambient;
+             color: #ffffff;
+             intensity: 0.45">
     </a-entity>
+
+    <!-- Gerichtetes Licht mit Schatten -->
+    <a-entity
+      light="type: directional;
+             color: #ffffff;
+             intensity: 1.0;
+             castShadow: true;
+             shadowMapWidth: 2048;
+             shadowMapHeight: 2048;
+             shadowCameraLeft: -8;
+             shadowCameraRight: 8;
+             shadowCameraTop: 8;
+             shadowCameraBottom: -8;
+             shadowCameraNear: 0.5;
+             shadowCameraFar: 25"
+      position="-3 7 1">
+    </a-entity>
+
+    <!-- Objekt 1: Boden mit Textur -->
+    <a-plane
+      id="boden"
+      position="0 -0.01 -3"
+      rotation="-90 0 0"
+      width="12"
+      height="12"
+      material="src: #bodenTextur;
+                repeat: 5 5;
+                roughness: 1"
+      shadow="receive: true; cast: false">
+    </a-plane>
+
+    <!-- Objekt 2: Importierte Frachtkiste -->
+    <a-entity
+      id="frachtkiste"
+      gltf-model="#crateModel"
+      position="-1.6 0 -2.8"
+      rotation="0 28 0"
+      shadow="cast: true; receive: true">
+    </a-entity>
+
+    <!-- Objekt 3: Plattform -->
+    <a-box
+      position="0.6 0.2 -3"
+      width="1.9"
+      height="0.4"
+      depth="1.35"
+      color="#d5a053"
+      shadow="cast: true; receive: true">
+    </a-box>
+
+    <!-- Objekt 4: Kugel -->
+    <a-sphere
+      position="0.4 0.92 -3"
+      radius="0.43"
+      color="#428fc2"
+      shadow="cast: true; receive: true">
+    </a-sphere>
+
+    <!-- Objekt 5: Zylinder -->
+    <a-cylinder
+      position="2.1 0.65 -3.1"
+      radius="0.28"
+      height="1.3"
+      color="#c76d69"
+      shadow="cast: true; receive: true">
+    </a-cylinder>
+
+    <!-- Objekt 6: Kegel -->
+    <a-cone
+      position="-0.8 0.55 -4.1"
+      radius-bottom="0.4"
+      radius-top="0"
+      height="1.1"
+      color="#e6be57"
+      shadow="cast: true; receive: true">
+    </a-cone>
+
+    <!-- Objekt 7: Torus -->
+    <a-torus
+      position="1.65 1.0 -4.15"
+      radius="0.45"
+      radius-tubular="0.065"
+      color="#517c62"
+      shadow="cast: true; receive: false">
+    </a-torus>
+
+    <!-- Kamera -->
+    <a-entity position="0 1.6 1.2">
+      <a-camera
+        look-controls
+        wasd-controls="acceleration: 20">
+      </a-camera>
+    </a-entity>
+
   </a-scene>
+
 </body>
 </html>
